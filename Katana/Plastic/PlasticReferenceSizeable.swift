@@ -6,8 +6,7 @@
 //  Distributed under the MIT License.
 //  See the LICENSE file for more information.
 
-import UIKit
-
+import CoreGraphics
 /**
  Protocol that `NodeDescription` implementations can adopt to provide a reference size.
  
@@ -23,7 +22,7 @@ import UIKit
  - the Plastic multiplier is the minimum of the two
 */
 public protocol PlasticReferenceSizeable {
-  
+
   /// the reference size of the `NodeDescription`
-  static var referenceSize: CGSize {get}
+  static var referenceSize: CGSize { get }
 }

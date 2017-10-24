@@ -2,20 +2,20 @@ import XCTest
 import Katana
 
 class NodeDescriptionTest: XCTestCase {
-  private func view(withBackground color: UIColor, key: String?) -> View {
+  private func view(withBackground color: TestColor, key: String?) -> View {
     var props = ViewProps()
     props.backgroundColor = color
     props.key = key
     return View(props: props)
   }
-  
-  private func image(withBackground color: UIColor, key: String?) -> Image {
+
+  private func image(withBackground color: TestColor, key: String?) -> Image {
     var props = ImageProps()
     props.backgroundColor = color
     props.key = key
     return Image(props: props)
   }
-  
+
   func testreplaceKey() {
     let view1 = view(withBackground: .blue, key: nil)
     let view2 = view(withBackground: .blue, key: nil)
@@ -26,7 +26,7 @@ class NodeDescriptionTest: XCTestCase {
     XCTAssert(img.replaceKey == img.replaceKey)
     XCTAssert(img.replaceKey != view1.replaceKey)
   }
-  
+
   func testReplaceKeyWihtKeyableProps() {
     let view1 = view(withBackground: .blue, key: "a")
     let view2 = view(withBackground: .blue, key: "a")
@@ -34,7 +34,6 @@ class NodeDescriptionTest: XCTestCase {
     let image1 = image(withBackground: .blue, key: "a")
     let image2 = image(withBackground: .blue, key: "d")
 
-    
     XCTAssert(view1.replaceKey == view1.replaceKey)
     XCTAssert(view1.replaceKey == view2.replaceKey)
     XCTAssert(view1.replaceKey != view3.replaceKey)

@@ -41,7 +41,7 @@ struct Intro: PlasticNodeDescription, PlasticReferenceSizeable {
         $0.borderColor = .black
         $0.attributedTitles = [
           .normal: .buttonTitleString(state.step == .gotcha ? "Restart": "Next", for: .normal),
-          .highlighted: .buttonTitleString(state.step == .gotcha ? "Restart": "Next", for: .highlighted),
+          .highlighted: .buttonTitleString(state.step == .gotcha ? "Restart": "Next", for: .highlighted)
         ]
         
         $0.touchHandlers = [
@@ -82,7 +82,7 @@ struct Intro: PlasticNodeDescription, PlasticReferenceSizeable {
       let image = views[key]
       image?.size = .scalable(250, 250)
       image?.centerX = views.nativeView.centerX
-      image?.setTop(views.nativeView.top, offset: .scalable(100))
+      image?.top = views.nativeView.top + 100
     }
     
     // titles
@@ -91,7 +91,7 @@ struct Intro: PlasticNodeDescription, PlasticReferenceSizeable {
       title?.height = .scalable(200)
       title?.width = views.nativeView.width * 0.9
       title?.centerX = views.nativeView.centerX
-      title?.setBottom(button.top, offset: .scalable(-100))
+      title?.bottom = button.top - 100
     }
   }
   
@@ -102,7 +102,6 @@ struct Intro: PlasticNodeDescription, PlasticReferenceSizeable {
                                        nextState: StateType) {
 
     container[.background] = Animation(type: .linear(duration: 0.3))
-    
     
     // Pokemon slide
     container[.pokemonImage] = Animation(

@@ -10,7 +10,6 @@ import Foundation
 import Katana
 
 struct FetchMorePosts: AsyncAction, ActionWithSideEffect {
-    
     public struct CompletedActionPayload {
         var posts: [Post]
         var allFetched: Bool = false
@@ -30,47 +29,52 @@ struct FetchMorePosts: AsyncAction, ActionWithSideEffect {
         self.loadingPayload = payload
     }
     
-    static func updatedStateForLoading(currentState: State, action: FetchMorePosts) -> State {
+    func updatedStateForLoading(currentState: State) -> State {
         var newState = currentState as! CodingLoveState
         newState.loading = true
         newState.page += 1
         return newState
     }
     
-    static func updatedStateForCompleted(currentState: State, action: FetchMorePosts) -> State {
+    func updatedStateForCompleted(currentState: State) -> State {
         var newState = currentState as! CodingLoveState
         newState.loading = false
-        newState.posts += (action.completedPayload?.posts)!
-        newState.allPostsFetched = (action.completedPayload?.allFetched)!
+        newState.posts += (self.completedPayload?.posts)!
+        newState.allPostsFetched = (self.completedPayload?.allFetched)!
         return newState
     }
     
-    static func updatedStateForFailed(currentState: State, action: FetchMorePosts) -> State {
+    func updatedStateForFailed(currentState: State) -> State {
         var newState = currentState as! CodingLoveState
         newState.loading = false
         return newState
     }
+  
+    func updatedStateForProgress(currentState: State) -> State {
+      return currentState
+    }
+  
+    public func sideEffect(
+      currentState: State,
+      previousState: State,
+      dispatch: @escaping StoreDispatch,
+      dependencies: SideEffectDependencyContainer) {
     
-    public static func sideEffect(
-        action: FetchMorePosts,
-        state: State,
-        dispatch: @escaping StoreDispatch,
-        dependencies: SideEffectDependencyContainer
-    ) {
-        
-        let castedState = state as! CodingLoveState
-        let page: Int = castedState.page
-        
-        let postsProvider = dependencies as! PostsProvider
-        
-        postsProvider.fetchPosts(for: page) { (result, errorMessage) in
-            if let data = result {
-                let (posts, allFetched) = data
-                dispatch(action.completedAction(payload: CompletedActionPayload(posts: posts, allFetched: allFetched)))
-            
-            } else {
-                dispatch(action.failedAction(payload: errorMessage!))
-            }
+      let castedState = currentState as! CodingLoveState
+      let page: Int = castedState.page
+      
+      let postsProvider = dependencies as! PostsProvider
+      
+      postsProvider.fetchPosts(for: page) { (result, errorMessage) in
+        if let data = result {
+          let (posts, allFetched) = data
+          dispatch(self.completedAction {
+            $0.completedPayload = CompletedActionPayload(posts: posts, allFetched: allFetched)
+          })
+          
+        } else {
+          dispatch(self.failedAction { $0.failedPayload = errorMessage! })
         }
+      }
     }
 }

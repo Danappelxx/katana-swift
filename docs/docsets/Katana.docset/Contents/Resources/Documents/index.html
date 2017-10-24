@@ -13,7 +13,7 @@
     <a title="Katana  Reference"></a>
     <header>
       <div class="content-wrapper">
-        <p><a href="index.html">Katana Docs</a> (100% documented)</p>
+        <p><a href="index.html">Katana Docs</a> (99% documented)</p>
         <p class="header-right"><a href="https://github.com/BendingSpoons/katana-swift"><img src="img/gh.png"/>View on GitHub</a></p>
       </div>
     </header>
@@ -76,9 +76,6 @@
               <li class="nav-group-task">
                 <a href="Extensions/UIView.html">UIView</a>
               </li>
-              <li class="nav-group-task">
-                <a href="Extensions/UIView.html#/s:VE6KatanaCSo6UIView28UIViewDrawableContainerChild">– UIViewDrawableContainerChild</a>
-              </li>
             </ul>
           </li>
           <li class="nav-group-name">
@@ -127,12 +124,6 @@
                 <a href="Protocols/ConnectedNodeDescription.html">ConnectedNodeDescription</a>
               </li>
               <li class="nav-group-task">
-                <a href="Protocols/DrawableContainer.html">DrawableContainer</a>
-              </li>
-              <li class="nav-group-task">
-                <a href="Protocols.html#/s:P6Katana22DrawableContainerChild">DrawableContainerChild</a>
-              </li>
-              <li class="nav-group-task">
                 <a href="Protocols/NodeDescription.html">NodeDescription</a>
               </li>
               <li class="nav-group-task">
@@ -149,6 +140,9 @@
               </li>
               <li class="nav-group-task">
                 <a href="Protocols/PlasticReferenceSizeable.html">PlasticReferenceSizeable</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Protocols/PlatformNativeView.html">PlatformNativeView</a>
               </li>
               <li class="nav-group-task">
                 <a href="Protocols/SideEffectDependencyContainer.html">SideEffectDependencyContainer</a>
@@ -175,6 +169,9 @@
               </li>
               <li class="nav-group-task">
                 <a href="Structs/AnimationContainer.html">AnimationContainer</a>
+              </li>
+              <li class="nav-group-task">
+                <a href="Structs/AnimationOptions.html">AnimationOptions</a>
               </li>
               <li class="nav-group-task">
                 <a href="Structs/AnimationProps.html">AnimationProps</a>
@@ -227,11 +224,16 @@
         <section>
           <section class="section">
             
-            <p><img src="https://raw.githubusercontent.com/BendingSpoons/katana-swift/master/Assets/katana-header.png" alt="Katana"></p>
+            <p><img src="https://raw.githubusercontent.com/BendingSpoons/katana-swift/master/Assets/katana_header.png" alt="Katana"></p>
 
-<p><a href="https://travis-ci.org/BendingSpoons/katana-swift"><img src="https://travis-ci.org/BendingSpoons/katana-swift.svg?branch=master" alt="Build Status"></a></p>
+<p><a href="https://twitter.com/katana_swift"><img src="https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&amp;label=Follow%20katana_swift" alt="Twitter URL"></a>
+<a href="https://travis-ci.org/BendingSpoons/katana-swift"><img src="https://travis-ci.org/BendingSpoons/katana-swift.svg?branch=master" alt="Build Status"></a>
+<a href=""><img src="https://img.shields.io/cocoapods/metrics/doc-percent/Katana.svg" alt="Docs"></a>
+<a href="https://github.com/Carthage/Carthage"><img src="https://img.shields.io/badge/Carthage-compatible-4BC51D.svg?style=flat" alt="Carthage compatible"></a>
+<a href=""><img src="https://img.shields.io/cocoapods/v/Katana.svg" alt="CocoaPods"></a>
+<a href="https://github.com/BendingSpoons/katana-swift/blob/master/LICENSE"><img src="https://img.shields.io/badge/Licence-MIT-lightgrey.svg" alt="Licence"></a></p>
 
-<p>Katana is a modern Swift framework for writing iOS apps, strongly inspired by <a href="https://facebook.github.io/react/">React</a> and <a href="http://redux.js.org/">Redux</a>, that gives structure to all the aspects of your app:</p>
+<p>Katana is a modern Swift framework for writing iOS and macOS apps, strongly inspired by <a href="https://facebook.github.io/react/">React</a> and <a href="http://redux.js.org/">Redux</a>, that gives structure to all the aspects of your app:</p>
 
 <ul>
 <li><strong>logic</strong>: the app state is entirely described by a single serializable data structure, and the only way to change the state is to dispatch an action. An action is an intent to transform the state, and contains all the information to do so. Because all the changes are centralized and are happening in a strict order, there are no subtle race conditions to watch out for.</li>
@@ -280,6 +282,10 @@
 <td>🐎</td>
 <td>Easily animate UI changes</td>
 </tr>
+<tr>
+<td>📝</td>
+<td>Gradually migrate your application to Katana</td>
+</tr>
 </tbody></table>
 <a href='#overview' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h2 id='overview'>Overview</h2>
 <a href='#defining-the-logic-of-your-app' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='defining-the-logic-of-your-app'>Defining the logic of your app</h3>
@@ -294,7 +300,7 @@
 <pre class="highlight swift"><code><span class="kd">struct</span> <span class="kt">IncrementCounter</span><span class="p">:</span> <span class="kt">SyncAction</span> <span class="p">{</span>
   <span class="k">var</span> <span class="nv">payload</span><span class="p">:</span> <span class="p">()</span>
 
-  <span class="kd">static</span> <span class="kd">func</span> <span class="nf">updatedState</span><span class="p">(</span><span class="nv">currentState</span><span class="p">:</span> <span class="kt">State</span><span class="p">,</span> <span class="nv">action</span><span class="p">:</span> <span class="kt">IncrementCounter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">State</span> <span class="p">{</span>
+  <span class="kd">func</span> <span class="nf">updatedState</span><span class="p">(</span><span class="nv">currentState</span><span class="p">:</span> <span class="kt">State</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">State</span> <span class="p">{</span>
     <span class="k">guard</span> <span class="k">var</span> <span class="nv">state</span> <span class="o">=</span> <span class="n">currentState</span> <span class="k">as?</span> <span class="kt">CounterState</span> <span class="k">else</span> <span class="p">{</span> <span class="nf">fatalError</span><span class="p">(</span><span class="s">"wrong state type"</span><span class="p">)</span>     <span class="p">}</span>
     <span class="n">state</span><span class="o">.</span><span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="n">state</span>
@@ -319,7 +325,7 @@
 <ul>
 <li><code>StateType</code> the internal state of the component (es. highlighted for a button)</li>
 <li><code>PropsType</code> the inputs coming from outside the component (es. backgroundColor for a view)</li>
-<li><code>NativeView</code> the UIKit element associated with the component</li>
+<li><code>NativeView</code> the UIKit/AppKit element associated with the component</li>
 </ul>
 <pre class="highlight swift"><code><span class="kd">struct</span> <span class="kt">CounterScreen</span><span class="p">:</span> <span class="kt">NodeDescription</span> <span class="p">{</span>
     <span class="kd">typealias</span> <span class="kt">StateType</span> <span class="o">=</span> <span class="kt">EmptyState</span>
@@ -396,18 +402,18 @@
 <p>The <code>Renderer</code> is responsible for rendering the UI tree and updating it when the <code>Store</code> changes. </p>
 
 <p>You create a <code>Renderer</code> object starting from the top level <code>NodeDescription</code> and the <code>Store</code>.</p>
-<pre class="highlight plaintext"><code>renderer = Renderer(rootDescription: counterScreen, store: store)
-renderer.render(in: view)
+<pre class="highlight swift"><code><span class="n">renderer</span> <span class="o">=</span> <span class="kt">Renderer</span><span class="p">(</span><span class="nv">rootDescription</span><span class="p">:</span> <span class="n">counterScreen</span><span class="p">,</span> <span class="nv">store</span><span class="p">:</span> <span class="n">store</span><span class="p">)</span>
+<span class="n">renderer</span><span class="o">.</span><span class="nf">render</span><span class="p">(</span><span class="nv">in</span><span class="p">:</span> <span class="n">view</span><span class="p">)</span>
 </code></pre>
 
 <p>Every time a new app <code>State</code> is available, the <code>Store</code> dispatches an event that is captured by the <code>Renderer</code> and dispatched down to the tree of UI components.
 If you want a component to receive updates from the <code>Store</code> just declare its <code>NodeDescription</code> as <code>ConnectedNodeDescription</code> and implement the method <code>connect</code> to attach the app <code>Store</code> to the component <code>props</code>.</p>
-<pre class="highlight plaintext"><code>struct CounterScreen: ConnectedNodeDescription {
-  ...
-  static func connect(props: inout PropsType, to storeState: StateType) {
-    props.count = storeState.counter
-  }
-}
+<pre class="highlight swift"><code><span class="kd">struct</span> <span class="kt">CounterScreen</span><span class="p">:</span> <span class="kt">ConnectedNodeDescription</span> <span class="p">{</span>
+  <span class="o">...</span>
+  <span class="kd">static</span> <span class="kd">func</span> <span class="nf">connect</span><span class="p">(</span><span class="nv">props</span><span class="p">:</span> <span class="k">inout</span> <span class="kt">PropsType</span><span class="p">,</span> <span class="n">to</span> <span class="nv">storeState</span><span class="p">:</span> <span class="kt">StateType</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">props</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="n">storeState</span><span class="o">.</span><span class="n">counter</span>
+  <span class="p">}</span>
+<span class="p">}</span>
 </code></pre>
 <a href='#layout-of-the-ui' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='layout-of-the-ui'>Layout of the UI</h3>
 
@@ -431,6 +437,9 @@ If you want to opt in, just implement the <code>PlasticNodeDescription</code> pr
   <span class="p">}</span>
 <span class="p">}</span>
 </code></pre>
+<a href='#note-for-layout-in-macos' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='note-for-layout-in-macos'>Note for layout in macOS</h3>
+
+<p>Plastic is assuming that the coordinate system has its origin at the upper left corner of the drawing area (like in iOS), so if you want to use plastic on macOS, remember to specify <code>isFlipped = true</code> for all your custom native AppKit views that have children components. All the components we provide are already following this convention.</p>
 <a href='#you-can-find-the-complete-example-a-href-https-github-com-bendingspoons-katana-swift-blob-master-demo-here-a' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='you-can-find-the-complete-example-a-href-https-github-com-bendingspoons-katana-swift-blob-master-demo-here-a'>You can find the complete example <a href="https://github.com/BendingSpoons/katana-swift/blob/master/Demo">here</a></h3>
 
 <table>
@@ -443,7 +452,7 @@ If you want to opt in, just implement the <code>PlasticNodeDescription</code> pr
 <a href='#where-to-go-from-here' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h2 id='where-to-go-from-here'>Where to go from here</h2>
 <a href='#getting-started-tutorial' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='getting-started-tutorial'>Getting started tutorial</h3>
 
-<p>We wrote a <a href="https://github.com/BendingSpoons/katana-tutorial-swift">getting started tutorial</a>. It is currently a work in progress, but it will be finished soon!</p>
+<p>We wrote a <a href="https://github.com/BendingSpoons/katana-tutorial-swift">getting started tutorial</a>.</p>
 <a href='#give-it-a-shot' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='give-it-a-shot'>Give it a shot</h3>
 <pre class="highlight plaintext"><code>pod try Katana
 </code></pre>
@@ -482,7 +491,7 @@ If you want to opt in, just implement the <code>PlasticNodeDescription</code> pr
 <a href='#requirements' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='requirements'>Requirements</h3>
 
 <ul>
-<li><p>iOS 8.4+</p></li>
+<li><p>iOS 8.4+ / macOS 10.10+</p></li>
 <li><p>Xcode 8.0+</p></li>
 <li><p>Swift 3.0+</p></li>
 </ul>
@@ -494,16 +503,31 @@ If you want to opt in, just implement the <code>PlasticNodeDescription</code> pr
 <pre class="highlight shell"><code><span class="gp">$ </span>sudo gem install cocoapods
 </code></pre>
 
-<p>To integrate Katana into your Xcode project using CocoaPods, add it to your <code>Podfile</code>:</p>
-<pre class="highlight plaintext"><code>use_frameworks!
-source 'https://github.com/CocoaPods/Specs.git'
-platform :ios, '8.4'
+<p>To integrate Katana into your Xcode project using CocoaPods you need to create a <code>Podfile</code>.</p>
 
-pod 'Katana'
-pod 'KatanaElements'
+<p>For iOS platforms, this is the content</p>
+<pre class="highlight ruby"><code><span class="n">use_frameworks!</span>
+<span class="n">source</span> <span class="s1">'https://github.com/CocoaPods/Specs.git'</span>
+<span class="n">platform</span> <span class="ss">:ios</span><span class="p">,</span> <span class="s1">'8.4'</span>
+
+<span class="n">target</span> <span class="s1">'MyApp'</span> <span class="k">do</span>
+  <span class="n">pod</span> <span class="s1">'Katana'</span>
+  <span class="n">pod</span> <span class="s1">'KatanaElements'</span>
+<span class="k">end</span>
 </code></pre>
 
-<p>And run:</p>
+<p>On MacOS, instead, use the following</p>
+<pre class="highlight ruby"><code><span class="n">use_frameworks!</span>
+<span class="n">source</span> <span class="s1">'https://github.com/CocoaPods/Specs.git'</span>
+<span class="n">platform</span> <span class="ss">:osx</span><span class="p">,</span> <span class="s1">'10.11'</span>
+
+<span class="n">target</span> <span class="s1">'test'</span> <span class="k">do</span>
+  <span class="n">pod</span> <span class="s1">'Katana'</span>
+  <span class="n">pod</span> <span class="s1">'KatanaElements'</span>
+<span class="k">end</span>
+</code></pre>
+
+<p>Now, you just need to run:</p>
 <pre class="highlight shell"><code><span class="gp">$ </span>pod install
 </code></pre>
 <a href='#carthage' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h3 id='carthage'>Carthage</h3>
@@ -523,10 +547,32 @@ You can install Carthage downloading and running the <code>Carthage.pkg</code> f
 </code></pre>
 
 <p>Then drag the built <code>Katana.framework</code> and <code>KatanaElements.framework</code> into your Xcode project.</p>
+<a href='#gradual-adoption' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h2 id='gradual-adoption'>Gradual Adoption</h2>
+
+<p>You can easily integrate Katana in existing applications. This can be very useful in at least two scenarios:
+- You want to try katana in a real world application, but you don&rsquo;t want to rewrite it entirely
+- You want to gradually migrate your application to Katana</p>
+
+<p>A gradual adoption doesn&rsquo;t require nothing different from the standard Katana usage. You just need to render your initial <code>NodeDescription</code> in the view where you want to place the UI managed by Katana. </p>
+
+<p>Assuming you are in a view controller and you have a <code>NodeDescription</code> named <code>Description</code>, you can do something like this:</p>
+<pre class="highlight swift"><code><span class="c1">// get the view where you want to render the UI managed by Katana</span>
+<span class="k">let</span> <span class="nv">view</span> <span class="o">=</span> <span class="nf">methodToGetView</span><span class="p">()</span>
+<span class="k">let</span> <span class="nv">description</span> <span class="o">=</span> <span class="kt">Description</span><span class="p">(</span><span class="nv">props</span><span class="p">:</span> <span class="kt">Props</span><span class="o">.</span><span class="n">build</span> <span class="p">{</span>
+    <span class="nv">$0</span><span class="o">.</span><span class="n">frame</span> <span class="o">=</span> <span class="n">view</span><span class="o">.</span><span class="n">frame</span>
+<span class="p">})</span>
+
+<span class="c1">// here we are not using the store. But you can create it normally</span>
+<span class="c1">// You should also retain a reference to renderer, in order to don't deallocate all the UI that will be created when the method ends</span>
+<span class="k">let</span> <span class="nv">renderer</span> <span class="o">=</span> <span class="kt">Renderer</span><span class="p">(</span><span class="nv">rootDescription</span><span class="p">:</span> <span class="n">description</span><span class="p">,</span> <span class="nv">store</span><span class="p">:</span> <span class="kc">nil</span><span class="p">)</span>
+
+<span class="c1">// render the UI</span>
+<span class="n">renderer</span><span class="o">!.</span><span class="nf">render</span><span class="p">(</span><span class="nv">in</span><span class="p">:</span> <span class="n">view</span><span class="p">)</span>
+</code></pre>
 <a href='#roadmap' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h2 id='roadmap'>Roadmap</h2>
 
 <ul>
-<li><p>[x] immutable state</p></li>
+<li>[x] immutable state</li>
 <li><p>[x] unidirectional data flow</p></li>
 <li><p>[x] sync/async/sideEffect actions</p></li>
 <li><p>[x] middlewares</p></li>
@@ -537,7 +583,7 @@ You can install Carthage downloading and running the <code>Carthage.pkg</code> f
 <li><p>[x] leverage Plastic layout engine</p></li>
 <li><p>[ ] support other layout engines</p></li>
 <li><p>[ ] declarative Table element</p></li>
-<li><p>[ ] macOS support</p></li>
+<li><p>[x] macOS support</p></li>
 <li><p>[ ] improve test coverage</p></li>
 <li><p>[ ] expand documentation</p></li>
 <li><p>[ ] write an example about wrapping UIKit view controllers</p></li>
@@ -566,7 +612,7 @@ You can install Carthage downloading and running the <code>Carthage.pkg</code> f
 <p>We&rsquo;ll be happy to send you a sticker with the logo as a sign of appreciation for any meaningful contribution.</p>
 <a href='#license' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h2 id='license'>License</h2>
 
-<p>Katana is available under the <a href="https://github.com/BendingSpoons/katana-swift/blob/master/LICENSE">MIT license</a></p>
+<p>Katana is available under the <a href="https://github.com/BendingSpoons/katana-swift/blob/master/LICENSE">MIT license</a>.</p>
 <a href='#about' class='anchor' aria-hidden=true><span class="header-anchor"></span></a><h2 id='about'>About</h2>
 
 <p>Katana is maintained by Bending Spoons.
@@ -576,7 +622,7 @@ Interested? <a href="http://bndspn.com/2fKggTa">Check us out</a>!</p>
           </section>
         </section>
         <section id="footer">
-          <p>&copy; 2016 <a class="link" href="http://bendingspoons.com" target="_blank" rel="external">Bending Spoons Team</a>. All rights reserved. (Last updated: 2016-11-16)</p>
+          <p>&copy; 2016 <a class="link" href="http://bendingspoons.com" target="_blank" rel="external">Bending Spoons Team</a>. All rights reserved. (Last updated: 2016-12-24)</p>
           <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.7.2</a>, a <a class="link" href="http://realm.io" target="_blank" rel="external">Realm</a> project.</p>
         </section>
       </article>

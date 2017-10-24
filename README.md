@@ -1,8 +1,14 @@
-![Katana](https://raw.githubusercontent.com/BendingSpoons/katana-swift/master/Assets/katana-header.png)
+![Katana](https://raw.githubusercontent.com/BendingSpoons/katana-swift/master/Assets/katana_header.png)
 
+[![Twitter URL](https://img.shields.io/twitter/url/https/twitter.com/fold_left.svg?style=social&label=Follow%20katana_swift)](https://twitter.com/katana_swift)
 [![Build Status](https://travis-ci.org/BendingSpoons/katana-swift.svg?branch=master)](https://travis-ci.org/BendingSpoons/katana-swift)
+[![Docs](https://img.shields.io/cocoapods/metrics/doc-percent/Katana.svg)]()
+[![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-4BC51D.svg?style=flat)](https://github.com/Carthage/Carthage)
+[![CocoaPods](https://img.shields.io/cocoapods/v/Katana.svg)]()
+[![Licence](https://img.shields.io/badge/Licence-MIT-lightgrey.svg)](https://github.com/BendingSpoons/katana-swift/blob/master/LICENSE)
 
-Katana is a modern Swift framework for writing iOS apps, strongly inspired by [React](https://facebook.github.io/react/) and [Redux](http://redux.js.org/), that gives structure to all the aspects of your app:
+
+Katana is a modern Swift framework for writing iOS and macOS apps, strongly inspired by [React](https://facebook.github.io/react/) and [Redux](http://redux.js.org/), that gives structure to all the aspects of your app:
 
 - __logic__: the app state is entirely described by a single serializable data structure, and the only way to change the state is to dispatch an action. An action is an intent to transform the state, and contains all the information to do so. Because all the changes are centralized and are happening in a strict order, there are no subtle race conditions to watch out for.
 - __UI__: the UI is defined in terms of a tree of components declaratively described by props (the configuration data, i.e. a background color for a button) and state (the internal state data, i.e. the highlighted state for a button). This approach lets you think about components as isolated, reusable pieces of UI, since the way a component is rendered only depends on the current props and state of the component itself.
@@ -24,7 +30,7 @@ We feel that Katana helped us a lot since we started using it in production. At 
 | 🎩   | Automatically update the UI when your app state changes |
 | 📐   | Automatically scale your UI to every size and aspect ratio |
 | 🐎   | Easily animate UI changes                |
-
+| 📝   | Gradually migrate your application to Katana |
 
 
 
@@ -41,13 +47,11 @@ struct CounterState: State {
 }
 ```
 
-The app `State` can only be modified by an `Action`. An `Action` represents an event that leads to a change in the `State` of the app. There are two kind of actions: `SyncAction` and `AsyncAction`. You define the behaviour of the action implementing the `updatedState()` method that will return the new app `State` based on the current app `State` and the `Action` itself.
+The app `State` can only be modified by an `Action`. An `Action` represents an event that leads to a change in the `State` of the app. You define the behaviour of the action implementing the `updatedState()` method that will return the new app `State` based on the current app `State` and the `Action` itself.
 
 ```swift
-struct IncrementCounter: SyncAction {
-  var payload: ()
-
-  static func updatedState(currentState: State, action: IncrementCounter) -> State {
+struct IncrementCounter: Action {
+  func updatedState(currentState: State) -> State {
     guard var state = currentState as? CounterState else { fatalError("wrong state type") 	  }
     state.counter += 1
     return state
@@ -78,7 +82,7 @@ In Katana you declaratively describe a specific piece of UI providing a  `NodeDe
 
 - `StateType` the internal state of the component (es. highlighted for a button)
 - `PropsType` the inputs coming from outside the component (es. backgroundColor for a view)
-- `NativeView` the UIKit element associated with the component
+- `NativeView` the UIKit/AppKit element associated with the component
 
 ```swift
 struct CounterScreen: NodeDescription {
@@ -166,7 +170,7 @@ The `Renderer` is responsible for rendering the UI tree and updating it when the
 
 You create a `Renderer` object starting from the top level `NodeDescription` and the `Store`.
 
-```
+```swift
 renderer = Renderer(rootDescription: counterScreen, store: store)
 renderer.render(in: view)
 ```
@@ -174,7 +178,7 @@ renderer.render(in: view)
 Every time a new app `State` is available, the `Store` dispatches an event that is captured by the `Renderer ` and dispatched down to the tree of UI components.
 If you want a component to receive updates from the `Store` just declare its `NodeDescription` as `ConnectedNodeDescription` and implement the method `connect` to attach the app `Store` to the component `props`.
 
-```
+```swift
 struct CounterScreen: ConnectedNodeDescription {
   ...
   static func connect(props: inout PropsType, to storeState: StateType) {
@@ -210,6 +214,10 @@ struct CounterScreen: ConnectedNodeDescription, PlasticNodeDescription, PlasticR
 }
 ```
 
+### Note for layout in macOS
+
+Plastic is assuming that the coordinate system has its origin at the upper left corner of the drawing area (like in iOS), so if you want to use plastic on macOS, remember to specify `isFlipped = true` for all your custom native AppKit views that have children components. All the components we provide are already following this convention.
+
 ### You can find the complete example [here](https://github.com/BendingSpoons/katana-swift/blob/master/Demo)
 
 <table>
@@ -225,7 +233,7 @@ struct CounterScreen: ConnectedNodeDescription, PlasticNodeDescription, PlasticR
 ## Where to go from here
 
 ### Getting started tutorial
-We wrote a [getting started tutorial](https://github.com/BendingSpoons/katana-tutorial-swift). It is currently a work in progress, but it will be finished soon!
+We wrote a [getting started tutorial](https://github.com/BendingSpoons/katana-tutorial-swift).
 
 ### Give it a shot
 
@@ -264,14 +272,13 @@ pod try Katana
 
 [Documentation](http://katana.bendingspoons.com)
 
-
 ## Installation
 
 Katana is available through [CocoaPods](https://cocoapods.org/) and [Carthage](https://github.com/Carthage/Carthage), you can also drop `Katana.project` into your Xcode project.
 
 ### Requirements
 
-- iOS 8.4+
+- iOS 8.4+ / macOS 10.10+
 
 - Xcode 8.0+
 
@@ -287,18 +294,35 @@ Katana is available through [CocoaPods](https://cocoapods.org/) and [Carthage](h
 $ sudo gem install cocoapods
 ```
 
-To integrate Katana into your Xcode project using CocoaPods, add it to your `Podfile`:
+To integrate Katana into your Xcode project using CocoaPods you need to create a `Podfile`.
 
-```
+For iOS platforms, this is the content
+
+```ruby
 use_frameworks!
 source 'https://github.com/CocoaPods/Specs.git'
 platform :ios, '8.4'
 
-pod 'Katana'
-pod 'KatanaElements'
+target 'MyApp' do
+  pod 'Katana'
+  pod 'KatanaElements'
+end
 ```
 
-And run:
+On MacOS, instead, use the following
+
+```ruby
+use_frameworks!
+source 'https://github.com/CocoaPods/Specs.git'
+platform :osx, '10.11'
+
+target 'test' do
+  pod 'Katana'
+  pod 'KatanaElements'
+end
+```
+
+Now, you just need to run:
 
 ```bash
 $ pod install
@@ -330,30 +354,30 @@ $ carthage update
 
 Then drag the built `Katana.framework` and `KatanaElements.framework` into your Xcode project.
 
+## Gradual Adoption
 
+You can easily integrate Katana in existing applications. This can be very useful in at least two scenarios:
+- You want to try katana in a real world application, but you don't want to rewrite it entirely
+- You want to gradually migrate your application to Katana
 
-## Roadmap
+A gradual adoption doesn't require nothing different from the standard Katana usage. You just need to render your initial `NodeDescription` in the view where you want to place the UI managed by Katana. 
 
-- [x] immutable state
+Assuming you are in a view controller and you have a `NodeDescription` named `Description`, you can do something like this:
 
+```swift
+// get the view where you want to render the UI managed by Katana
+let view = methodToGetView()
+let description = Description(props: Props.build {
+	$0.frame = view.frame
+})
 
-- [x] unidirectional data flow
+// here we are not using the store. But you can create it normally
+// You should also retain a reference to renderer, in order to don't deallocate all the UI that will be created when the method ends
+let renderer = Renderer(rootDescription: description, store: nil)
 
-
-- [x] sync/async/sideEffect actions
-- [x] middlewares
-- [x] automatic UI update
-- [x] native redux-like implementation
-- [x] native react-like implementation
-- [x] declarative UI
-- [x] leverage Plastic layout engine
-- [ ] support other layout engines
-- [ ] declarative Table element
-- [ ] macOS support
-- [ ] improve test coverage
-- [ ] expand documentation
-- [ ] write an example about wrapping UIKit view controllers
-
+// render the UI
+renderer!.render(in: view)
+```
 
 
 ## Get in touch 
@@ -373,11 +397,17 @@ Then drag the built `Katana.framework` and `KatanaElements.framework` into your 
 - If you __have an idea__ on how to improve the framework or how to spread the word, please [get in touch](#get-in-touch);
 - If you want to __try the framework__ for your project or to write a demo, please send us the link of the repo.
 
-We'll be happy to send you a sticker with the logo as a sign of appreciation for any meaningful contribution.
+
+
+## Run the project
+
+In order to run the project, you need [xcake](https://github.com/jcampbell05/xcake). Once you have installed it, go in the Katana project root and run `xcake make`
+
+
 
 ## License
 
-Katana is available under the [MIT license](https://github.com/BendingSpoons/katana-swift/blob/master/LICENSE)
+Katana is available under the [MIT license](https://github.com/BendingSpoons/katana-swift/blob/master/LICENSE).
 
 ## About
 

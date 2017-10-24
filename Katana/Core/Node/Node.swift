@@ -6,53 +6,56 @@
 //  Distributed under the MIT License.
 //  See the LICENSE file for more information.
 
-import UIKit
+import Foundation
+
+// swiftlint:disable file_length
 
 /// typealias for the dictionary used to store the nodes during the update phase
 private typealias ChildrenDictionary = [Int:[(node: AnyNode, index: Int)]]
 
 /**
-  Katana works by representing the UI as a tree. Beside the tree managed by UIKit with UIView (or subclasses) instances,
-  Katana holds a tree of instances of `Node`. The tree is composed as follows:
+ Katana works by representing the UI as a tree.
+ Beside the tree managed by UIKit/AppKit with UIView/NSView (or subclasses) instances through PlatformNativeViews,
+ Katana holds a tree of instances of `Node`. The tree is composed as follows:
  
-  - each node of the tree is an instance of UIView (or subclasses);
+ - each node of the tree is an instance of PlatformNativeView (baked by UIKit/AppKit or subclasses);
  
-  - the edges between nodes represent the parent/children (or view/subviews) relation.
+ - the edges between nodes represent the parent/children (or view/subviews) relation.
  
-  Each `Node` instance is characterized by a description (which is an implementation of `NodeDescription`).
-  Since descriptions are stateless, the `Node` also holds properties and state. It is also in charge of managing the lifecycle
-  of the UI and in particular to invoke the methods `childrenDescriptions` and
-  `applyPropsToNativeView` of `NodeDescription` when needed.
+ Each `Node` instance is characterized by a description (which is an implementation of `NodeDescription`).
+ Since descriptions are stateless, the `Node` also holds properties and state. It is also in charge of managing the lifecycle
+ of the UI and in particular to invoke the methods `childrenDescriptions` and
+ `applyPropsToNativeView` of `NodeDescription` when needed.
  
-  In general this class is never used during the development of an application. Developers usually work with `NodeDescription`.
+ In general this class is never used during the development of an application. Developers usually work with `NodeDescription`.
  
-  ## Managed Children
-  Most of the time, `Node` is able to generate and handle its children automatically by using the description methods.
-
-  That being said, there are cases where this is not possible
-  (e.g., in a table, when you need to generate and handle the nodes contained in the cells).
-  In order to maintain an unique tree to represent the UI, we ask to handle these
-  cases manually by invoking two methods: `addManagedChild(with:in:)` and `removeManagedChild(node:)`.
-  
-  Having a single tree is important for several reasons.
-  For example we may want to run automatic tests on the tree and verify some conditions (e.g., there is a button).
-
-  Managed children are added to act as a workaround of a current limitation of Katana.
-  We definitively want to remove this limitation and automate the management of the children in all the cases.
-*/
+ ## Managed Children
+ Most of the time, `Node` is able to generate and handle its children automatically by using the description methods.
+ 
+ That being said, there are cases where this is not possible
+ (e.g., in a table, when you need to generate and handle the nodes contained in the cells).
+ In order to maintain an unique tree to represent the UI, we ask to handle these
+ cases manually by invoking two methods: `addManagedChild(with:in:)` and `removeManagedChild(node:)`.
+ 
+ Having a single tree is important for several reasons.
+ For example we may want to run automatic tests on the tree and verify some conditions (e.g., there is a button).
+ 
+ Managed children are added to act as a workaround of a current limitation of Katana.
+ We definitively want to remove this limitation and automate the management of the children in all the cases.
+ */
 public class Node<Description: NodeDescription> {
   
   /// The children of the node
   public fileprivate(set) var children: [AnyNode]!
   
+  /// The current state of the node
+  public fileprivate(set) var state: Description.StateType
+  
+  /// The container in which the node will be drawn
+  public var container: PlatformNativeView?
+  
   /// The children descriptions of the node
   fileprivate var childrenDescriptions: [AnyNodeDescription]!
-
-  /// The container in which the node will be drawn
-  fileprivate var container: DrawableContainer?
-  
-  /// The current state of the node
-  fileprivate(set) var state: Description.StateType
   
   /// The current description of the node
   fileprivate(set) var description: Description
@@ -60,9 +63,7 @@ public class Node<Description: NodeDescription> {
   /// An ID that represent the animation that is currently running
   fileprivate var animationID: Int?
   
-  /**
-    The parent of the node.
-  */
+  /// The parent of the node.
   public fileprivate(set) weak var parent: AnyNode?
   
   /**
@@ -73,22 +74,24 @@ public class Node<Description: NodeDescription> {
    */
   fileprivate weak var myRenderer: Renderer?
   
-  
+  fileprivate var storeDispatch: StoreDispatch {
+    return self.renderer?.store?.dispatch ?? { fatalError("\($0) cannot be dispatched. Store not avaiable.") }
+  }
   
   /// The array of managed children of the node
   public var managedChildren: [AnyNode] = []
-
+  
   /**
    Creates an instance of node.
-  
+   
    - parameter description: The description to associate with the node
    - parameter parent:      The parent of the node
    - returns: an instance of `Node` with the given parameters
-  */
+   */
   public convenience init(description: Description, parent: AnyNode) {
     self.init(description: description, parent: parent, renderer: nil)
   }
- 
+  
   /**
    Creates an instance of node
    
@@ -97,39 +100,55 @@ public class Node<Description: NodeDescription> {
    - returns: an instance of `Node` with the given parameters
    
    - note: the `parent` parameter will be nil
-  */
+   */
   public convenience init(description: Description, renderer: Renderer) {
     self.init(description: description, parent: nil, renderer: renderer)
   }
-
+  
   /**
    Creates an instance of node given a description and the renderer
    
    - note: You can either pass `parent` or `renderer` but not both. Internally `renderer`
-           is passed when a renderer is created starting from this node description
+   is passed when a renderer is created starting from this node description
    
    - parameter description: The description to associate with the node
    - parameter parent:      The parent of the node
    - parameter renderer:         The renderer of the node. The node will be managed by the renderer as a root node
    
    - returns: A valid instance of Node
-  */
+   */
   internal init(description: Description, parent: AnyNode?, renderer: Renderer?) {
     guard (parent != nil) != (renderer != nil) else {
       fatalError("either the parent or the renderer should be passed")
     }
     
     self.description = description
-    self.state = Description.StateType.init()
     self.parent = parent
     self.myRenderer = renderer
     
-    self.description.props = self.updatedPropsWithConnect(description: description, props: self.description.props)
+    let rootRenderer = (renderer != nil ? renderer : parent?.renderer)
+    
+    self.description.props = Node.updatedPropsWithConnect(
+      description: description,
+      props: description.props,
+      store: rootRenderer?.store
+    )
+    
+    if
+      let unwrappedRootRenderer = rootRenderer,
+      let stateMockProvider = unwrappedRootRenderer.stateMockProvider,
+      let mockedState = stateMockProvider.state(for: Description.self, props: self.description.props) {
+      
+      self.state = mockedState
+      
+    } else {
+      self.state = Description.StateType()
+    }
     
     self.childrenDescriptions  = self.processedChildrenDescriptionsBeforeDraw(
       self.getChildrenDescriptions()
     )
-        
+    
     self.children = self.childrenDescriptions.map {
       $0.makeNode(parent: self)
     }
@@ -149,14 +168,17 @@ public class Node<Description: NodeDescription> {
     // NOTE: this method is here because Swift doesn't support override of extension methods yet
     return children
   }
+  
+  deinit {
+    Description.didUnmount(props: self.description.props, dispatch: self.storeDispatch)
+  }
 }
-
 
 // MARK: Render
 extension Node {
   /**
    Renders the node in a given container. Draws a node basically means create
-   the necessary UIKit classes (most likely UIViews or subclasses) and add them to the UI hierarchy.
+   the necessary UIKit classes (most likely UIView/NSView or subclasses) and add them to the UI hierarchy.
    
    -note:
    This method should be invoked only once, the first time a node is drawn. For further updates of the UI managed by
@@ -164,12 +186,12 @@ extension Node {
    
    - parameter container: the container in which the node should be drawn
    */
-  func render(in container: DrawableContainer) {
+  func render(in container: PlatformNativeView) {
     if self.container != nil {
       fatalError("draw can only be call once on a node")
     }
     
-    self.container = container.addChild() { Description.NativeView() }
+    self.container = container.addChild() { Description.NativeView.make() }
     
     let update = { [weak self] (state: Description.StateType) in
       DispatchQueue.main.async {
@@ -178,13 +200,19 @@ extension Node {
     }
     
     self.container?.update { view in
+      
+      let view = view as! Description.NativeView
+      
       Description.applyPropsToNativeView(props: self.description.props,
                                          state: self.state,
-                                         view: view as! Description.NativeView,
+                                         view: view,
                                          update: update,
                                          node: self)
+      
+      self.manageRef(for: self.description, view: view)
     }
     
+    Description.didMount(props: self.description.props, dispatch: self.storeDispatch, update: update)
     
     children.forEach { child in
       let child = child as! InternalAnyNode
@@ -204,14 +232,14 @@ extension Node {
    
    - parameter animation:     the animation to use to transition from the previous UI to the new one
    
-   - parameter nativeRenderCallback: a callback that is invoked when the native view has been updated
+   - parameter callback:               a callback that is invoked when the method has eneded its job
    - parameter childrenRenderCallback: a callback that is invoked every time a children is managed
    (e.g., added to the UI hierarchy)
    */
   fileprivate func reRender(childrenToAdd: [AnyNode],
                             viewIndexes: [Int],
                             animation: AnimationContainer,
-                            nativeRenderCallback: (() -> ())?,
+                            callback: (() -> ())?,
                             childrenRenderCallback: (() -> ())?) {
     
     guard let container = self.container else {
@@ -220,22 +248,34 @@ extension Node {
     
     assert(viewIndexes.count == self.children.count)
     
+    var nativeViewUpdateDone = false
+    var reRenderDone = false
+    
     let update = { [weak self] (state: Description.StateType) -> () in
       self?.update(for: state)
     }
     
     let updateBlock = { () -> () in
       container.update { view in
+        
+        let view = view as! Description.NativeView 
+        
         Description.applyPropsToNativeView(props: self.description.props,
                                            state: self.state,
-                                           view: view as! Description.NativeView,
+                                           view: view,
                                            update: update,
                                            node: self)
+        
+        self.manageRef(for: self.description, view: view)
       }
     }
     
-    animation.nativeViewAnimation.animate(updateBlock, completion: {
-      nativeRenderCallback?()
+    Description.NativeView.animate(type: animation.nativeViewAnimation, updateBlock, completion: {
+      nativeViewUpdateDone = true
+      
+      if reRenderDone {
+        callback?()
+      }
     })
     
     childrenToAdd.forEach { node in
@@ -244,7 +284,7 @@ extension Node {
       childrenRenderCallback?()
     }
     
-    var currentSubviews: [DrawableContainerChild?] =  container.children().map { $0 }
+    var currentSubviews: [PlatformNativeView?] =  container.children()
     let sorted = viewIndexes.isSorted
     
     for viewIndex in viewIndexes {
@@ -260,9 +300,13 @@ extension Node {
         self.container?.removeChild(viewToRemove)
       }
     }
+    
+    reRenderDone = true
+    if nativeViewUpdateDone {
+      callback?()
+    }
   }
 }
-
 
 // MARK: Managed children
 extension Node {
@@ -274,7 +318,7 @@ extension Node {
    
    - returns: the node that has been created. The node will have the current node as parent
    */
-  public func addManagedChild(with description: AnyNodeDescription, in container: DrawableContainer) -> AnyNode {
+  public func addManagedChild(with description: AnyNodeDescription, in container: PlatformNativeView) -> AnyNode {
     let node = description.makeNode(parent: self) as! InternalAnyNode
     self.managedChildren.append(node)
     node.render(in: container)
@@ -307,12 +351,10 @@ extension Node {
       }
     }
     
-    let dispatch =  self.renderer.store?.dispatch ?? { fatalError("\($0) cannot be dispatched. Store not avaiable.") }
-    
     return type(of: description).childrenDescriptions(props: self.description.props,
                                                       state: self.state,
                                                       update: update,
-                                                      dispatch: dispatch)
+                                                      dispatch: self.storeDispatch)
   }
   
   /**
@@ -323,14 +365,19 @@ extension Node {
    
    - parameter description: the `NodeDescription` to use to update the properties
    - parameter props:       the properties to update
+   - parameter store:       the store to which the node is connected to
    
    - returns: the updated properties
    */
-  func updatedPropsWithConnect(description: Description, props: Description.PropsType) -> Description.PropsType {
+  static func updatedPropsWithConnect(
+    description: Description,
+    props: Description.PropsType,
+    store: AnyStore?) -> Description.PropsType {
+
     if let desc = description as? AnyConnectedNodeDescription {
       // description is connected to the store, we need to update it
       
-      guard let store = self.renderer.store else {
+      guard let store = store else {
         fatalError("connected node lacks store")
       }
       
@@ -342,18 +389,17 @@ extension Node {
   }
 }
 
-
 // MARK: Update
 extension Node {
   /**
-    Updates the node with a new state. Invoking this method will cause an update of the piece of the UI managed by the node
+   Updates the node with a new state. Invoking this method will cause an update of the piece of the UI managed by the node
    
-    - parameter state: the new state
-  */
+   - parameter state: the new state
+   */
   func update(for state: Description.StateType) {
     self.update(for: state, description: self.description, animation: .none)
   }
-
+  
   /**
    Updates the node with a new state and description.
    Invoking this method will cause an update of the piece of the UI managed by the node
@@ -362,8 +408,8 @@ extension Node {
    - parameter description:     the new description to use
    - parameter animation:       the animation to use for the update
    - parameter force:           true if the update should be forced.
-                                Force an update means that state and props equality are ignored
-                                and basically the UI is always refreshed
+   Force an update means that state and props equality are ignored
+   and basically the UI is always refreshed
    
    - parameter completion:      a block that is invoked when the update is completed
    */
@@ -372,17 +418,69 @@ extension Node {
               animation: AnimationContainer,
               force: Bool = false,
               completion: NodeUpdateCompletion? = nil) {
-
-    guard force || self.description.props != description.props || self.state != state else {
+    
+    // Overwrite the state if the state is mocked
+    let stateToUse: Description.StateType
+      
+    if
+      let provider = self.renderer?.stateMockProvider,
+      let mockedState = provider.state(for: Description.self, props: description.props) {
+      
+      stateToUse = mockedState
+    
+    } else {
+      stateToUse = state
+    }
+      
+    let shouldUpdate = Description.shouldUpdate(
+      currentProps: self.description.props,
+      nextProps: description.props,
+      currentState: self.state,
+      nextState: stateToUse
+    )
+    
+    var newState = stateToUse
+    
+    guard force || shouldUpdate else {
+      self.state = newState
+      self.description = description
       completion?()
       return
+    }
+    
+    // invoke the proper lifecycle hook if props changes
+    if self.description.props != description.props {
+      
+      var syncStateUpdate = true
+      
+      let update = { [weak self] (state: Description.StateType) in
+        if syncStateUpdate {
+          newState = state
+          
+        } else {
+          DispatchQueue.main.async {
+            self?.update(for: state)
+          }
+        }
+      }
+      
+      Description.descriptionWillReceiveProps(
+        state: state,
+        currentProps: self.description.props,
+        nextProps: description.props,
+        dispatch: self.storeDispatch,
+        update: update
+      )
+      
+      // too late, from now on an update will trigger a new update cycle
+      syncStateUpdate = false
     }
     
     // update the internal state
     let currentState = self.state
     let currentDescription = self.description
     self.description = description
-    self.state = state
+    self.state = newState
     
     // calculate new children
     let newChildrenDescriptions = self.processedChildrenDescriptionsBeforeDraw(
@@ -395,7 +493,6 @@ extension Node {
       self.update(newChildrenDescriptions: newChildrenDescriptions, animation: animation, completion: completion)
       return
     }
-    
     
     // The update hasn't an animation
     // Give a chance to the description to return an animation for the next update cycle
@@ -414,7 +511,6 @@ extension Node {
       childrenAnimation: childrenAnimations
     )
     
-    
     // if we have an animation for the children, we need to perform it. Otherwise it is just
     // a normal update
     if animationToPerform.childrenAnimation.shouldAnimate {
@@ -424,7 +520,7 @@ extension Node {
         animation: animationToPerform,
         completion: completion
       )
-    
+      
     } else {
       self.update(newChildrenDescriptions: newChildrenDescriptions, animation: animationToPerform, completion: completion)
     }
@@ -439,7 +535,7 @@ extension Node {
    - parameter finalChildren:   the children of the node after the animation process
    - parameter animation:       the animation to use
    - parameter completion:      a completion block to invoke at the end of the update
-  */
+   */
   fileprivate func animatedChildrenUpdate(from initialChildren: [AnyNodeDescription],
                                           to finalChildren: [AnyNodeDescription],
                                           animation: AnimationContainer,
@@ -454,7 +550,7 @@ extension Node {
       targetChildren: initialChildren,
       step: .firstIntermediate
     )
-
+    
     // second transition state
     var secondTransitionChildren = AnimationUtils.mergedDescriptions(initialChildren, finalChildren, step: .secondIntermediate)
     
@@ -464,26 +560,34 @@ extension Node {
       targetChildren: finalChildren,
       step: .secondIntermediate
     )
-
+    
     // assign an hash to the animation, we use will it later to check the animation completion step
     let randomID = Int.random
     self.animationID = randomID
     
-    // perform the steps
-    self.update(newChildrenDescriptions: firstTransitionChildren, animation: .none) { [weak self] in
-      self?.update(newChildrenDescriptions: secondTransitionChildren, animation: animation) { [weak self] in
+    // if there aren't children that are added in the animated transition, we don't need the first step
+    let needsFirstStep = initialChildren.count != firstTransitionChildren.count
+    
+    let finalCompletion = { [weak self] in
+      // we need to check the animation hash. If it is the same it means the animation has not been interrupted.
+      // If an animation is interrupted, we don't need to execute the last step for that specific animation
+      if let id = self?.animationID, id == randomID {
+        // final state
+        self?.update(newChildrenDescriptions: finalChildren, animation: .none, completion: completion)
         
-        // we need to check the animation hash. If it is the same it means the animation has not been interrupted.
-        // If an animation is interrupted, we don't need to execute the last step for that specific animation
-        if let id = self?.animationID, id == randomID {
-          // final state
-          self?.update(newChildrenDescriptions: finalChildren, animation: .none, completion: completion)
-          
-        } else {
-          completion?()
-        }
-        
-        self?.animationID = nil
+      } else {
+        completion?()
+      }
+      
+      self?.animationID = nil
+    }
+    
+    if !needsFirstStep {
+      self.update(newChildrenDescriptions: secondTransitionChildren, animation: animation, completion: finalCompletion)
+      
+    } else {
+      self.update(newChildrenDescriptions: firstTransitionChildren, animation: .none) { [weak self] in
+        self?.update(newChildrenDescriptions: secondTransitionChildren, animation: animation, completion: finalCompletion)
       }
     }
   }
@@ -495,14 +599,17 @@ extension Node {
    - parameter newChildrenDescription:  the children to render
    - parameter animation:               the animation to use
    - parameter completion:              a completion block invoked at the end of the update
-  */
+   */
   fileprivate func update(newChildrenDescriptions: [AnyNodeDescription],
                           animation: AnimationContainer,
                           completion: NodeUpdateCompletion?) {
-
+    
     var nodes: [AnyNode] = []
     var viewIndexes: [Int] = []
     var childrenToAdd: [AnyNode] = []
+    
+    // signal that the node has been rendered
+    self.renderer?.setNodeAsUpdatedInCurrentRenderCycle(self)
     
     // manage completion block
     // if we don't have it, just don't do anything. But if we have it, we need to
@@ -516,7 +623,7 @@ extension Node {
     if completion != nil {
       nativeViewCallback = { () -> () in
         nativeViewUpdateCompleted = true
-
+        
         if childUpdateCompletedCounter == newChildrenDescriptions.count {
           completion?()
         }
@@ -576,7 +683,7 @@ extension Node {
       childrenToAdd: childrenToAdd,
       viewIndexes: viewIndexes,
       animation: animation,
-      nativeRenderCallback:  nativeViewCallback,
+      callback:  nativeViewCallback,
       childrenRenderCallback: childrenCallback
     )
   }
@@ -589,8 +696,26 @@ extension Node {
   /**
    The renderer of the node. This is a computed variable that traverses the tree up to the root node and returns root.renderer
    */
-  public var renderer: Renderer {
+  public var renderer: Renderer? {
     guard self.myRenderer == nil else { return self.myRenderer! }
-    return self.parent!.renderer
+    return self.parent?.renderer
+  }
+}
+
+fileprivate extension Node {
+  
+  /**
+   Invokes, if needed, the ref callback for the given description using the given native view
+  */
+  fileprivate func manageRef(for description: Description, view: Description.NativeView) {
+    guard
+      let propsWithRef = description.props as? AnyNodeDescriptionWithRefProps,
+      let viewWithRef = view as? AnyPlatformNativeViewWithRef
+      
+      else {
+        return
+    }
+    
+    propsWithRef.anyRefCallback?(viewWithRef.anyRef)
   }
 }

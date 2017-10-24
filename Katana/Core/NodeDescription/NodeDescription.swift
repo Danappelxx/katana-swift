@@ -6,8 +6,7 @@
 //  Distributed under the MIT License.
 //  See the LICENSE file for more information.
 
-import UIKit
-
+import CoreGraphics
 /**
  Protocol that is used for structs that represent the state of a `Node`.
  
@@ -41,7 +40,7 @@ public extension NodeDescriptionState {
 public protocol AnyNodeDescriptionProps {
   /// The frame of the `NodeDescription`
   var frame: CGRect { get set }
-  
+
   /// The alpha of the `NodeDescription`
   var alpha: CGFloat { get set }
 
@@ -50,7 +49,7 @@ public protocol AnyNodeDescriptionProps {
    from Plastic to implement the layout system or in the animation management to reference children
   */
   var key: String? { get set }
-  
+
   /**
    Helper method to translate any Swift value to a key, which is a String
    
@@ -66,6 +65,7 @@ public extension AnyNodeDescriptionProps {
   }
 }
 
+public typealias NodeDescriptionUpdate<T> = (newState: T, completion: (() ->())?)
 
 /**
  Protocol that is used for structs that represent the properties of a `NodeDescription`.
@@ -94,17 +94,17 @@ public extension NodeDescriptionProps {
 public protocol AnyNodeDescription {
   /// Type erasure for `props`
   var anyProps: AnyNodeDescriptionProps { get }
-  
+
   /**
     The replace key of the description. When two descriptions have the same replaceKey, Katana consider them interchangeable.
     During an UI update, Katana will try to minimise the creation of new nodes
-    (and therefore UIView instances) by reusing old nodes. This is only possible when the old node description
+    (and therefore UIView/NSView instances) by reusing old nodes. This is only possible when the old node description
     is interchangeable with the node that Katana is trying to render.
    
     You can customise the replace key to control the reuse of nodes and views.
   */
   var replaceKey: Int { get }
-  
+
   /**
    Initialise the description
    
@@ -112,14 +112,14 @@ public protocol AnyNodeDescription {
    - returns: a value of description with the given pros
   */
   init(anyProps: AnyNodeDescriptionProps)
-  
+
   /**
    Returns a node instance associated with the description.
    - parameter parent: the parent node to associate with the node
    - returns: the node instance
   */
   func makeNode(parent: AnyNode) -> AnyNode
-  
+
   /**
    Returns a node instance associated with a renderer.
    - parameter renderer: the renderer that is responsible to rendering the UI starting from this node description
@@ -140,15 +140,17 @@ public enum EmptyKeys {}
  
  In general, a description defines two things:
  
- - how properties and state are used to personalise the instance of UIView (or subclass) associated with the `Node` instance.
-   This view is also named **NativeView**
+ - how properties and state are used to personalise the instance of UIView/NSView (or subclass)
+ associated with the `Node` instance. This view is also named **NativeView**
 
  - what are the children descriptions given the properties and the state
  
  ### Node and NodeDescription relationship
  It is important to remember that the UI hierarchy has a 1:1 relationship with `Node` instances
- and not with `NodeDescription`. This means that each `UIView` in the UIKit UI tree is connected to a `Node` instance.
- This instance holds the description that is used to manage the `UIView` (and the children), properties and the state.
+ and not with `NodeDescription`. This means that each `UIView` in the UIKit UI tree
+ (or `NSView` in the AppKit UI tree) is connected to a `Node` instance.
+ This instance holds the description that is used to manage the `UIView` (or `NSView`) (and the children),
+ properties and the state.
  
  This is why all the `NodeDescription` methods are static.
  Description instances are meaningless and are used only as an easy to ready way
@@ -157,21 +159,21 @@ public enum EmptyKeys {}
  
 */
 public protocol NodeDescription: AnyNodeDescription {
-  
-  /// The UIKit class that will be instantiated for this description. The default value is `UIView`
-  associatedtype NativeView: UIView = UIView
-  
+
+  /// The PlatformNativeView class that will be instantiated for this description.
+  associatedtype NativeView: PlatformNativeView = DefaultView
+
   /// The type of properties that this description uses. The default value is `EmptyProps`
   associatedtype PropsType: NodeDescriptionProps = EmptyProps
-  
+
   /// The type of state that this description uses. The default value is `EmptyState`
   associatedtype StateType: NodeDescriptionState = EmptyState
-  
+
   associatedtype Keys = EmptyKeys
-  
+
   /// The properties of the the description
   var props: PropsType { get set }
-  
+
   /**
    Creates a description with the given props
    
@@ -179,7 +181,7 @@ public protocol NodeDescription: AnyNodeDescription {
    - returns: a description with the given properties
   */
   init(props: PropsType)
-  
+
   /**
    This method is used to update the `NativeView` starting from the given properties and state
    - parameter props:  the properties
@@ -195,7 +197,7 @@ public protocol NodeDescription: AnyNodeDescription {
                                      view: NativeView,
                                      update: @escaping (StateType)->(),
                                      node: AnyNode)
-  
+
   /**
    This method is used to describe the children starting from the given properties and state
    - parameter props:    the properties
@@ -211,8 +213,7 @@ public protocol NodeDescription: AnyNodeDescription {
                      state: StateType,
                      update: @escaping (StateType)->(),
                      dispatch: @escaping StoreDispatch) -> [AnyNodeDescription]
-  
-  
+
   /**
    This method is used to describe the animations to perform.
    
@@ -232,17 +233,65 @@ public protocol NodeDescription: AnyNodeDescription {
                                        nextProps: PropsType,
                                        currentState: StateType,
                                        nextState: StateType)
-  
+
+  /**
+   This method is invoked just after the backing node is rendered in the view's hierarchy.
+   Note that `childrenDescriptions` and `applyPropsToNativeView` will be invoked before this method
+   
+   - parameter props:     the initial props with which the description is created
+   - parameter dispatch:  the store dispatch function
+   - parameter update:    the update function. It will trigger a new render cycle
+  */
+  static func didMount(props: PropsType, dispatch: @escaping StoreDispatch, update: @escaping (StateType) -> ())
+
+  /**
+   This method is invoked just after the backing node is removed from the view's hierarchy.
+   
+   - parameter props:     the final props of the description
+   - parameter dispastch: the store dispatch function
+   */
+  static func didUnmount(props: PropsType, dispatch: @escaping StoreDispatch)
+
+  /**
+   This method is invoked when new props (that trigger a new update cycle) are received.
+   You have the chance to update the internal state of the description without triggering a new render
+   (new state will be immediately available in the next update cycle) if `update` is invoked synchronously.
+ 
+   - parameter state:           the current state of the description
+   - parameter currentProps:    the current props of the description
+   - parameter nextProps:       the just received props. They will be used as "props" in the next update cycle
+   - parameter dispatch:        the store dispatch function
+   - parameter update:          the update function. It can be used to update the state without triggering new update cycles.
+  */
+  static func descriptionWillReceiveProps(state: StateType,
+                                          currentProps: PropsType,
+                                          nextProps: PropsType,
+                                          dispatch: @escaping StoreDispatch,
+                                          update: @escaping (StateType) -> ())
+
+  /**
+   This method is used to undestand whether a description should be updated when either the props
+   or the state change.
+   
+   - parameter currentProps:    the props that have been used to create the current UI
+   - parameter nextProps:       the props that will be used in the next UI update cycle
+   - parameter currentState:    the state that has been used to create the current UI
+   - parameter nextState:       the state that will be used in the next UI update cycle
+   */
+  static func shouldUpdate(currentProps: PropsType,
+                           nextProps: PropsType,
+                           currentState: StateType,
+                           nextState: StateType) -> Bool
 }
 
 public extension NodeDescription {
-  
+
   /// The default implementation tries to force cast `anyProps` to the correct `PropsType`
   public init(anyProps: AnyNodeDescriptionProps) {
     let props = anyProps as! Self.PropsType
     self.init(props: props)
   }
-  
+
   /// The default implementation just sets the frame of the native view to `props.frame`
   public static func applyPropsToNativeView(props: PropsType,
                                             state: StateType,
@@ -252,7 +301,7 @@ public extension NodeDescription {
     view.frame = props.frame
     view.alpha = props.alpha
   }
-  
+
   /// The default implementation does nothing. This is equivalent to never trigger an animation
   public static func updateChildrenAnimations(container: inout ChildrenAnimations<Self.Keys>,
                                        currentProps: PropsType,
@@ -261,6 +310,31 @@ public extension NodeDescription {
                                        nextState: StateType) {
     // do nothing, which means no animations
   }
+
+  /// The default implementation does nothing
+  public static func didMount(props: PropsType, dispatch: @escaping StoreDispatch, update: @escaping (StateType) -> ()) {}
+
+  /// The default implementation does nothing
+  public static func didUnmount(props: PropsType, dispatch: @escaping StoreDispatch) {}
+
+  /// The default implementation does nothing
+  static func descriptionWillReceiveProps(state: StateType,
+                                          currentProps: PropsType,
+                                          nextProps: PropsType,
+                                          dispatch: @escaping StoreDispatch,
+                                          update: @escaping (StateType) -> ()) {}
+  
+  /**
+    The default implementation compares the props and the states leveraging the `Equatable` protocol.
+    It returns true if either the props or the state is changed
+  */
+  static func shouldUpdate(currentProps: PropsType,
+                           nextProps: PropsType,
+                           currentState: StateType,
+                           nextState: StateType) -> Bool {
+    
+    return currentProps != nextProps || currentState != nextState
+  }
 }
 
 extension AnyNodeDescription where Self: NodeDescription {
@@ -268,15 +342,15 @@ extension AnyNodeDescription where Self: NodeDescription {
   public var anyProps: AnyNodeDescriptionProps {
     return self.props
   }
-  
+
   public func makeNode(parent: AnyNode) -> AnyNode {
     return Node(description: self, parent: parent)
   }
-  
+
   public func makeNode(renderer: Renderer) -> AnyNode {
     return Node(description: self, renderer: renderer)
   }
-  
+
   /**
    The default implementation of this method returns a value that allow Katana to exchange nodes related to the same description
    types. If the description has `Keyable` properties, the key is used as an extra source of information.
@@ -285,7 +359,7 @@ extension AnyNodeDescription where Self: NodeDescription {
     if let key = self.anyProps.key {
       return "\(ObjectIdentifier(type(of: self)).hashValue)_\(key)".hashValue
     }
-    
+
     return ObjectIdentifier(type(of: self)).hashValue
   }
 }
